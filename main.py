@@ -1,3 +1,4 @@
+################### 1 ###################
 # import os
 # import uuid
 # import json
@@ -181,53 +182,365 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+################### 2 ###################
+
+
+# from fastapi import FastAPI, UploadFile, File, Form
+# from datetime import datetime
+# import uuid
+# import json
+# import re
+# import google.generativeai as genai
+# import tempfile
+# import os
+# from PIL import Image
+# import io
+# from dotenv import load_dotenv
+
+# # -------------------------------
+# # Load environment variables
+# # -------------------------------
+# load_dotenv()
+# api_key = os.getenv("GEMINI_API_KEY")
+
+# if not api_key:
+#     raise ValueError("❌ GEMINI_API_KEY not found in .env file")
+
+# # Configure Gemini with the API key
+# genai.configure(api_key=api_key)
+
+# # -------------------------------
+# # Initialize FastAPI app
+# # -------------------------------
+# app = FastAPI(title= "AI Meal Calorie Calculator & Fitness Coach")
+
+# # In-memory data store
+# users = {}
+
+# # -------------------------------
+# # Utility: Safe JSON Parser
+# # -------------------------------
+# def safe_json_parse(text):
+#     try:
+#         clean = re.search(r"\{.*\}", text, re.DOTALL)
+#         if clean:
+#             return json.loads(clean.group())
+#     except Exception:
+#         pass
+#     return None
+
+
+# # -------------------------------
+# # 1️⃣ Create / Update User Profile
+# # -------------------------------
+# @app.post("/set-profile")
+# async def set_profile(
+#     name: str = Form(...),
+#     age: int = Form(...),
+#     sex: str = Form(...),
+#     weight_kg: float = Form(...),
+#     height_cm: float = Form(...),
+#     activity_level: str = Form(...),
+#     goal: str = Form(...),
+# ):
+#     user_id = str(uuid.uuid4())
+#     users[user_id] = {
+#         "profile": {
+#             "name": name,
+#             "age": age,
+#             "sex": sex,
+#             "weight_kg": weight_kg,
+#             "height_cm": height_cm,
+#             "activity_level": activity_level,
+#             "goal": goal,
+#         },
+#         "meal_history": [],
+#         "recommendations": {},
+#         "workouts": [],
+#         "progress": [],
+#         "notifications": [],
+#     }
+#     return {"message": "User profile created successfully", "user_id": user_id}
+
+
+# # --------------------------------
+# # 2️⃣ Upload Meal Image & Analyze
+# # --------------------------------
+# @app.post("/upload-meal")
+# async def upload_meal(user_id: str = Form(...), file: UploadFile = File(...)):
+#     if user_id not in users:
+#         return {"error": "User not found. Please create a profile first."}
+
+#     # Convert uploaded bytes to PIL image
+#     image_bytes = await file.read()
+#     try:
+#         img = Image.open(io.BytesIO(image_bytes))
+#     except Exception:
+#         return {"error": "Invalid image file."}
+
+#     try:
+#         model = genai.GenerativeModel("gemini-2.5-flash")
+
+#         analysis_id = str(uuid.uuid4())
+#         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+#         prompt = f"""
+#         You are a certified nutritionist AI.
+#         User Profile: {users[user_id]['profile']}
+#         Analyze this meal image and return valid JSON only (no explanation):
+#         {{
+#           "analysis_id": "{analysis_id}",
+#           "datetime": "{timestamp}",
+#           "total_calories": 0,
+#           "protein": 0,
+#           "carbs": 0,
+#           "fats": 0,
+#           "suggestions": "short healthy meal advice"
+#         }}
+#         """
+
+#         # Pass PIL.Image directly to Gemini
+#         response = model.generate_content([prompt, img])
+#         parsed = safe_json_parse(response.text)
+
+#         if not parsed:
+#             return {"error": "Invalid AI response", "raw": response.text}
+
+#         users[user_id]["meal_history"].append(parsed)
+#         return {"message": "Meal analyzed successfully", "data": parsed}
+
+#     except Exception as e:
+#         return {"error": f"Meal analysis failed: {str(e)}"}
+
+
+# # --------------------------------
+# # 3️⃣ Goal-Based Nutrition Advice
+# # --------------------------------
+# @app.get("/nutrition-recommendations/{user_id}")
+# async def nutrition_recommendations(user_id: str):
+#     if user_id not in users:
+#         return {"error": "User not found."}
+
+#     model = genai.GenerativeModel("gemini-2.5-flash")
+
+#     prompt = f"""
+#     Based on this user profile:
+#     {users[user_id]['profile']}
+#     Provide JSON only with daily nutritional goals and example meals:
+#     {{
+#       "recommended_calories": 0,
+#       "recommended_protein": 0,
+#       "recommended_carbs": 0,
+#       "recommended_fats": 0,
+#       "meal_suggestions": ["Breakfast: ...", "Lunch: ...", "Dinner: ..."]
+#     }}
+#     """
+
+#     try:
+#         response = model.generate_content(prompt)
+#         parsed = safe_json_parse(response.text)
+#         if not parsed:
+#             return {"error": "Invalid AI response", "raw": response.text}
+#         users[user_id]["recommendations"] = parsed
+#         return {"message": "Nutrition recommendation generated", "data": parsed}
+#     except Exception as e:
+#         return {"error": f"Failed to generate recommendations: {str(e)}"}
+
+
+# # --------------------------------
+# # 4️⃣ AI-Enhanced Workouts
+# # --------------------------------
+# @app.get("/ai-workout/{user_id}")
+# async def ai_workout(user_id: str):
+#     if user_id not in users:
+#         return {"error": "User not found."}
+
+#     model = genai.GenerativeModel("gemini-2.5-flash")
+
+#     prompt = f"""
+#     You are an AI fitness coach.
+#     User profile: {users[user_id]['profile']}
+#     Suggest a 1-day personalized workout plan in JSON only:
+#     {{
+#       "goal": "{users[user_id]['profile']['goal']}",
+#       "exercises": [
+#         {{"name": "Push-ups", "sets": 3, "reps": 12}},
+#         {{"name": "Squats", "sets": 3, "reps": 15}}
+#       ],
+#       "tips": "Stay hydrated and maintain proper form."
+#     }}
+#     """
+
+#     try:
+#         response = model.generate_content(prompt)
+#         parsed = safe_json_parse(response.text)
+#         if not parsed:
+#             return {"error": "Invalid AI response", "raw": response.text}
+#         users[user_id]["workouts"].append(parsed)
+#         return {"message": "Workout plan generated", "data": parsed}
+#     except Exception as e:
+#         return {"error": f"Workout generation failed: {str(e)}"}
+
+
+# # --------------------------------
+# # 5️⃣ Progress Insights
+# # --------------------------------
+# @app.get("/progress-insights/{user_id}")
+# async def progress_insights(user_id: str):
+#     if user_id not in users:
+#         return {"error": "User not found."}
+
+#     model = genai.GenerativeModel("gemini-2.5-flash")
+
+#     prompt = f"""
+#     Analyze user's meal and workout history:
+#     Meals: {users[user_id]['meal_history']}
+#     Workouts: {users[user_id]['workouts']}
+#     Return JSON only:
+#     {{
+#       "progress_summary": "short summary",
+#       "nutrition_pattern": "summary of macro balance",
+#       "performance_trend": "improving/declining",
+#       "suggested_next_steps": "AI feedback for next week"
+#     }}
+#     """
+
+#     try:
+#         response = model.generate_content(prompt)
+#         parsed = safe_json_parse(response.text)
+#         if not parsed:
+#             return {"error": "Invalid AI response", "raw": response.text}
+#         users[user_id]["progress"].append(parsed)
+#         return {"message": "Progress insights generated", "data": parsed}
+#     except Exception as e:
+#         return {"error": f"Failed to analyze progress: {str(e)}"}
+
+
+# # --------------------------------
+# # 6️⃣ Personalized Adjustments
+# # --------------------------------
+# @app.get("/personalized-adjustments/{user_id}")
+# async def personalized_adjustments(user_id: str):
+#     if user_id not in users:
+#         return {"error": "User not found."}
+
+#     model = genai.GenerativeModel("gemini-2.5-flash")
+
+#     prompt = f"""
+#     Based on user profile and history:
+#     Profile: {users[user_id]['profile']}
+#     Meals: {users[user_id]['meal_history']}
+#     Workouts: {users[user_id]['workouts']}
+#     Suggest adjustments in JSON only:
+#     {{
+#       "nutrition_adjustment": "short summary",
+#       "workout_adjustment": "short summary",
+#       "motivation_tip": "short motivational quote"
+#     }}
+#     """
+
+#     try:
+#         response = model.generate_content(prompt)
+#         parsed = safe_json_parse(response.text)
+#         if not parsed:
+#             return {"error": "Invalid AI response", "raw": response.text}
+#         return {"message": "Personalized adjustments ready", "data": parsed}
+#     except Exception as e:
+#         return {"error": f"Failed to get adjustments: {str(e)}"}
+
+
+# # --------------------------------
+# # 7️⃣ Motivation & Notifications
+# # --------------------------------
+# @app.get("/motivations/{user_id}")
+# async def motivations(user_id: str):
+#     if user_id not in users:
+#         return {"error": "User not found."}
+
+#     model = genai.GenerativeModel("gemini-2.5-flash")
+
+#     prompt = f"""
+#     You are a motivational coach.
+#     Based on user's goal: {users[user_id]['profile']['goal']}
+#     Return JSON only:
+#     {{
+#       "daily_quote": "motivational message",
+#       "reminder": "hydration/workout reminder",
+#       "encouragement": "progress motivation"
+#     }}
+#     """
+
+#     try:
+#         response = model.generate_content(prompt)
+#         parsed = safe_json_parse(response.text)
+#         if not parsed:
+#             return {"error": "Invalid AI response", "raw": response.text}
+#         users[user_id]["notifications"].append(parsed)
+#         return {"message": "Motivational data generated", "data": parsed}
+#     except Exception as e:
+#         return {"error": f"Failed to get motivation: {str(e)}"}
+
+
+
+
+######################## 3 ###################
+
+
 from fastapi import FastAPI, UploadFile, File, Form
 from datetime import datetime
 import uuid
 import json
 import re
-import google.generativeai as genai
-import tempfile
-import os
+
 from PIL import Image
 import io
+import google.generativeai as genai
 from dotenv import load_dotenv
+import os
 
 # -------------------------------
-# Load environment variables
+# Load Gemini API key
 # -------------------------------
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    raise ValueError("❌ GEMINI_API_KEY not found in .env file")
-
-# Configure Gemini with the API key
+    raise ValueError("GEMINI_API_KEY not found in .env file")
 genai.configure(api_key=api_key)
 
 # -------------------------------
-# Initialize FastAPI app
+# FastAPI App
 # -------------------------------
-app = FastAPI(title= "AI Meal Calorie Calculator & Fitness Coach")
-
-# In-memory data store
-users = {}
+app = FastAPI()
+users = {}  # In-memory user storage
 
 # -------------------------------
-# Utility: Safe JSON Parser
+# Safe JSON parser
 # -------------------------------
 def safe_json_parse(text):
     try:
-        clean = re.search(r"\{.*\}", text, re.DOTALL)
-        if clean:
-            return json.loads(clean.group())
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if match:
+            return json.loads(match.group())
     except Exception:
         pass
     return None
 
 
 # -------------------------------
-# 1️⃣ Create / Update User Profile
+# 1️⃣ User profile creation
 # -------------------------------
 @app.post("/set-profile")
 async def set_profile(
@@ -250,40 +563,39 @@ async def set_profile(
             "activity_level": activity_level,
             "goal": goal,
         },
-        "meal_history": [],
-        "recommendations": {},
-        "workouts": [],
-        "progress": [],
-        "notifications": [],
+            "meal_history": [],
+            "workouts": [],
+            "recommendations": [],
+            "progress": [],
+            "adjustments": [],
+            "motivations": []
     }
-    return {"message": "User profile created successfully", "user_id": user_id}
+    return {"message": "User profile created", "user_id": user_id}
 
-
-# --------------------------------
-# 2️⃣ Upload Meal Image & Analyze
-# --------------------------------
+# -------------------------------
+# 2️⃣ Meal Upload & Analysis
+# -------------------------------
 @app.post("/upload-meal")
 async def upload_meal(user_id: str = Form(...), file: UploadFile = File(...)):
     if user_id not in users:
-        return {"error": "User not found. Please create a profile first."}
+        return {"error": "User not found"}
+    
 
-    # Convert uploaded bytes to PIL image
     image_bytes = await file.read()
     try:
         img = Image.open(io.BytesIO(image_bytes))
-    except Exception:
-        return {"error": "Invalid image file."}
+    except:
+        return {"error": "Invalid image file"}
 
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
-
         analysis_id = str(uuid.uuid4())
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         prompt = f"""
-        You are a certified nutritionist AI.
+        You are a nutritionist AI.
         User Profile: {users[user_id]['profile']}
-        Analyze this meal image and return valid JSON only (no explanation):
+        Analyze this meal image and return JSON only:
         {{
           "analysis_id": "{analysis_id}",
           "datetime": "{timestamp}",
@@ -295,7 +607,7 @@ async def upload_meal(user_id: str = Form(...), file: UploadFile = File(...)):
         }}
         """
 
-        # Pass PIL.Image directly to Gemini
+
         response = model.generate_content([prompt, img])
         parsed = safe_json_parse(response.text)
 
@@ -303,176 +615,134 @@ async def upload_meal(user_id: str = Form(...), file: UploadFile = File(...)):
             return {"error": "Invalid AI response", "raw": response.text}
 
         users[user_id]["meal_history"].append(parsed)
-        return {"message": "Meal analyzed successfully", "data": parsed}
+        return {"message": "Meal analyzed", "data": parsed}
 
     except Exception as e:
         return {"error": f"Meal analysis failed: {str(e)}"}
 
+# -------------------------------
+# 3️⃣ Helper for field endpoints
+# -------------------------------
+def get_meal_field(user_id, analysis_id, field):
+    for meal in users.get(user_id, {}).get("meal_history", []):
+        if meal["analysis_id"] == analysis_id:
+            return {field: meal.get(field)}
+    return {"error": "Meal not found"}
 
-# --------------------------------
-# 3️⃣ Goal-Based Nutrition Advice
-# --------------------------------
+@app.get("/total-calories/{user_id}/{analysis_id}")
+async def total_calories(user_id: str, analysis_id: str):
+    return get_meal_field(user_id, analysis_id, "total_calories")
+
+@app.get("/protein/{user_id}/{analysis_id}")
+async def protein(user_id: str, analysis_id: str):
+    return get_meal_field(user_id, analysis_id, "protein")
+
+@app.get("/carbs/{user_id}/{analysis_id}")
+async def carbs(user_id: str, analysis_id: str):
+    return get_meal_field(user_id, analysis_id, "carbs")
+
+@app.get("/fats/{user_id}/{analysis_id}")
+async def fats(user_id: str, analysis_id: str):
+    return get_meal_field(user_id, analysis_id, "fats")
+
+@app.get("/suggestions/{user_id}/{analysis_id}")
+async def suggestions(user_id: str, analysis_id: str):
+    return get_meal_field(user_id, analysis_id, "suggestions")
+
+# -------------------------------
+# 4️⃣ Nutrition Recommendations
+# -------------------------------
 @app.get("/nutrition-recommendations/{user_id}")
 async def nutrition_recommendations(user_id: str):
     if user_id not in users:
-        return {"error": "User not found."}
-
+        return {"error": "User not found"}
     model = genai.GenerativeModel("gemini-2.5-flash")
-
     prompt = f"""
-    Based on this user profile:
-    {users[user_id]['profile']}
-    Provide JSON only with daily nutritional goals and example meals:
-    {{
-      "recommended_calories": 0,
-      "recommended_protein": 0,
-      "recommended_carbs": 0,
-      "recommended_fats": 0,
-      "meal_suggestions": ["Breakfast: ...", "Lunch: ...", "Dinner: ..."]
-    }}
+    User profile: {users[user_id]['profile']}
+    Provide JSON only with recommended daily calories, protein, carbs, fats, and meal suggestions.
     """
+    response = model.generate_content(prompt)
+    parsed = safe_json_parse(response.text)
+    if parsed:
+        users[user_id]["recommendations"].append(parsed)
+        return {"data": parsed}
+    return {"error": "Invalid AI response", "raw": response.text}
 
-    try:
-        response = model.generate_content(prompt)
-        parsed = safe_json_parse(response.text)
-        if not parsed:
-            return {"error": "Invalid AI response", "raw": response.text}
-        users[user_id]["recommendations"] = parsed
-        return {"message": "Nutrition recommendation generated", "data": parsed}
-    except Exception as e:
-        return {"error": f"Failed to generate recommendations: {str(e)}"}
-
-
-# --------------------------------
-# 4️⃣ AI-Enhanced Workouts
-# --------------------------------
+# -------------------------------
+# 5️⃣ AI Workout
+# -------------------------------
 @app.get("/ai-workout/{user_id}")
 async def ai_workout(user_id: str):
     if user_id not in users:
-        return {"error": "User not found."}
-
+        return {"error": "User not found"}
     model = genai.GenerativeModel("gemini-2.5-flash")
-
     prompt = f"""
-    You are an AI fitness coach.
-    User profile: {users[user_id]['profile']}
-    Suggest a 1-day personalized workout plan in JSON only:
-    {{
-      "goal": "{users[user_id]['profile']['goal']}",
-      "exercises": [
-        {{"name": "Push-ups", "sets": 3, "reps": 12}},
-        {{"name": "Squats", "sets": 3, "reps": 15}}
-      ],
-      "tips": "Stay hydrated and maintain proper form."
-    }}
-    """
-
-    try:
-        response = model.generate_content(prompt)
-        parsed = safe_json_parse(response.text)
-        if not parsed:
-            return {"error": "Invalid AI response", "raw": response.text}
+        User profile: {users[user_id]['profile']}
+        Suggest a JSON only 1-day workout plan with sets, reps, and tips.
+        """
+    response = model.generate_content(prompt)
+    parsed = safe_json_parse(response.text)
+    if parsed:
         users[user_id]["workouts"].append(parsed)
-        return {"message": "Workout plan generated", "data": parsed}
-    except Exception as e:
-        return {"error": f"Workout generation failed: {str(e)}"}
+        return {"data": parsed}
+    return {"error": "Invalid AI response", "raw": response.text}
 
-
-# --------------------------------
-# 5️⃣ Progress Insights
-# --------------------------------
+# -------------------------------
+# 6️⃣ Progress Insights
+# -------------------------------
 @app.get("/progress-insights/{user_id}")
 async def progress_insights(user_id: str):
     if user_id not in users:
-        return {"error": "User not found."}
-
+        return {"error": "User not found"}
     model = genai.GenerativeModel("gemini-2.5-flash")
-
     prompt = f"""
-    Analyze user's meal and workout history:
-    Meals: {users[user_id]['meal_history']}
-    Workouts: {users[user_id]['workouts']}
-    Return JSON only:
-    {{
-      "progress_summary": "short summary",
-      "nutrition_pattern": "summary of macro balance",
-      "performance_trend": "improving/declining",
-      "suggested_next_steps": "AI feedback for next week"
-    }}
-    """
-
-    try:
-        response = model.generate_content(prompt)
-        parsed = safe_json_parse(response.text)
-        if not parsed:
-            return {"error": "Invalid AI response", "raw": response.text}
+        Meals: {users[user_id]['meal_history']}
+        Workouts: {users[user_id]['workouts']}
+        Provide JSON only with progress summary, nutrition pattern, performance trend, and next steps.
+        """
+    response = model.generate_content(prompt)
+    parsed = safe_json_parse(response.text)
+    if parsed:
         users[user_id]["progress"].append(parsed)
-        return {"message": "Progress insights generated", "data": parsed}
-    except Exception as e:
-        return {"error": f"Failed to analyze progress: {str(e)}"}
+        return {"data": parsed}
+    return {"error": "Invalid AI response", "raw": response.text}
 
-
-# --------------------------------
-# 6️⃣ Personalized Adjustments
-# --------------------------------
+# -------------------------------
+# 7️⃣ Personalized Adjustments
+# -------------------------------
 @app.get("/personalized-adjustments/{user_id}")
 async def personalized_adjustments(user_id: str):
     if user_id not in users:
-        return {"error": "User not found."}
-
+        return {"error": "User not found"}
     model = genai.GenerativeModel("gemini-2.5-flash")
-
     prompt = f"""
-    Based on user profile and history:
-    Profile: {users[user_id]['profile']}
-    Meals: {users[user_id]['meal_history']}
-    Workouts: {users[user_id]['workouts']}
-    Suggest adjustments in JSON only:
-    {{
-      "nutrition_adjustment": "short summary",
-      "workout_adjustment": "short summary",
-      "motivation_tip": "short motivational quote"
-    }}
-    """
+        Profile: {users[user_id]['profile']}
+        Meals: {users[user_id]['meal_history']}
+        Workouts: {users[user_id]['workouts']}
+        Suggest JSON only adjustments for nutrition and workouts with motivational tip.
+        """
+    response = model.generate_content(prompt)
+    parsed = safe_json_parse(response.text)
+    if parsed:
+        users[user_id]["adjustments"].append(parsed)
+        return {"data": parsed}
+    return {"error": "Invalid AI response", "raw": response.text}
 
-    try:
-        response = model.generate_content(prompt)
-        parsed = safe_json_parse(response.text)
-        if not parsed:
-            return {"error": "Invalid AI response", "raw": response.text}
-        return {"message": "Personalized adjustments ready", "data": parsed}
-    except Exception as e:
-        return {"error": f"Failed to get adjustments: {str(e)}"}
-
-
-# --------------------------------
-# 7️⃣ Motivation & Notifications
-# --------------------------------
+# -------------------------------
+# 8️⃣ Motivations
+# -------------------------------
 @app.get("/motivations/{user_id}")
 async def motivations(user_id: str):
     if user_id not in users:
-        return {"error": "User not found."}
-
+        return {"error": "User not found"}
     model = genai.GenerativeModel("gemini-2.5-flash")
-
     prompt = f"""
-    You are a motivational coach.
-    Based on user's goal: {users[user_id]['profile']['goal']}
-    Return JSON only:
-    {{
-      "daily_quote": "motivational message",
-      "reminder": "hydration/workout reminder",
-      "encouragement": "progress motivation"
-    }}
+    User goal: {users[user_id]['profile']['goal']}
+    Provide JSON only with daily motivational quote, reminder, and encouragement.
     """
-
-    try:
-        response = model.generate_content(prompt)
-        parsed = safe_json_parse(response.text)
-        if not parsed:
-            return {"error": "Invalid AI response", "raw": response.text}
-        users[user_id]["notifications"].append(parsed)
-        return {"message": "Motivational data generated", "data": parsed}
-    except Exception as e:
-        return {"error": f"Failed to get motivation: {str(e)}"}
-
+    response = model.generate_content(prompt)
+    parsed = safe_json_parse(response.text)
+    if parsed:
+        users[user_id]["motivations"].append(parsed)
+        return {"data": parsed}
+    return {"error": "Invalid AI response", "raw": response.text}
